@@ -1,0 +1,51 @@
+
+public Class FiringJourneyTriggerClass{
+    
+    public static string accesstoken;    
+    public static void FiringJourneyTriggerMethod(set<Id> ssIds){ 
+       executeCalloutJourney(ssIds);        
+    }
+    
+    
+    @future(callout = true)
+    public static void executeCalloutJourney(Set<Id> ids){
+		
+        string str = '{"clientId": "***************","clientSecret": "****************"}'; //Add your Client Id and Client Secret.
+           
+        List<SampleDE__c> sampleList = new List<SampleDE__c>([SELECT id,SubsciberKey__c,Name,Email__c FROM SampleDE__c where Id =: ids]); // Fetch all the records necessary to be in Journey
+        
+		//First call to fetch the AccessToken
+		HttpRequest req = new HttpRequest();
+        req.setMethod('POST');
+        req.setHeader('Content-Type', 'application/json');
+        req.setEndpoint('https://auth.exacttargetapis.com/v1/requestToken');
+        req.setBody(str);
+        Http http = new Http();
+        HTTPResponse res = http.send(req);
+        
+        Map<String, Object> fieldMap = (Map<String, Object>)JSON.deserializeUntyped(res.getbody());
+        accesstoken  = (string)fieldMap.get('accessToken');
+        
+		
+		
+		//Second Call to fill the values and fire the Journey Event
+        if(accesstoken != null){
+       
+            //Took only one record to process but can loop thought and prepeare better JSON for Multiple records.
+            string requestBody = '{"ContactKey": "bhanu-prakash.avula@mars.com","EventDefinitionKey":"APIEvent-ae0aa52e-8076-06da-1cc8-6e74a9fb6a57","EstablishContactKey": true,"Data": {"SubsciberKey":"'+sampleList[0].SubsciberKey__c+'","Email":"'+sampleList[0].Email__c+'","sampleList[0].Name":"'+Name+'"}}';
+        
+			// Second Call to Fire the Journey.
+            HttpRequest req1 = new HttpRequest();
+            req1.setMethod('POST');
+            req1.setHeader('Content-Type', 'application/json');
+            req1.setEndpoint('https://www.exacttargetapis.com/interaction/v1/events');
+             
+            req1.setHeader('Authorization','Bearer ' +accesstoken);
+
+            req1.setBody(requestBody);
+            Http http1 = new Http();
+            HTTPResponse res1 = http1.send(req1); 
+             
+        } 
+    }
+}
